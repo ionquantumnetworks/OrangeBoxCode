@@ -1,0 +1,171 @@
+#AOM paraneters
+#493 AOM
+parameter<AD9912_FRQ> DDS493Freq
+parameter<AD9912_PHASE> DDS493Phase = 180
+parameter DDS493Amp = 1023
+#650 prep AOM
+parameter<AD9912_FRQ> DDS650prepFreq
+parameter<AD9912_PHASE> DDS650prepPhase = 180
+parameter DDS650prepAmp = 1023
+#650 extract AOM
+parameter<AD9912_FRQ> DDS650extFreq
+parameter<AD9912_PHASE> DDS650extPhase = 180
+parameter DDS650extAmp = 1023
+#493 AOM
+parameter<AD9912_FRQ> DDS493SigBeamFreq
+parameter<AD9912_PHASE> DDS493SigBeamPhase = 180
+parameter DDS493SigBeamAmp = 1023
+
+#Experiment parameters
+parameter BaCoolTime
+parameter DarkTime
+parameter DPrepTime
+parameter PulseBlasterTime
+parameter ShelveTime
+parameter BaDetTime
+var WaitTime = 500 ns
+
+#General Experiment parameters
+parameter loopNumb
+parameter ToCool
+parameter AOMUptime
+parameter PMTclicks
+parameter APDAclicks
+parameter APDBclicks
+var BrightState = 0
+var nA = 0
+var ProbBrightA
+var APDMarker
+var Runs
+
+#Channels
+const DDS493Channel = 5 #shutter 5
+const DDS650prepChannel = 2 #shutter 6
+const DDS650extChannel = 3 #shutter 3
+const DDS493SigBeamChannel = 4 #shutter 4
+const PMTchannel = 17 
+const APDAchannel = 18
+const APDBchannel = 19
+const PMTDataSendchannel = 1
+const APDMarkerDataSendchannel = 2
+const BrightADataSendchannel = 3
+
+#Counters
+counter PMTcounts = 0
+counter APDcounts = 0
+
+#Shutters
+shutter InitialisationShutter
+shutter BaCoolingON
+shutter BaCoolingOFF
+shutter DPrep
+shutter PulseBlaster
+shutter Shelve
+
+#Triggers
+trigger dds
+
+#Exit Codes
+exitcode Complete              = 0xfffe000000000002
+exitcode End                   = 0xfffe000000000001
+
+#Experiment cycle definitions
+#definition to keep AOMs on for alignment and power measurement
+def aomsteady():
+        set_shutter(BaCoolingON)
+        update(AOMUptime)
+#definition of barium cool cycle with PMT counting
+def baCounting():
+        set_shutter(BaCoolingON)
+        set_counter(PMTcounts)
+        update(BaDetTime)
+        clear_counter()
+        update()
+#definition of barium cool cycle with no PMT counting
+def bacool():
+        set_shutter(BaCoolingON)
+        update(BaCoolTime)
+#definition of barium dark cycle
+def dark():
+        set_shutter(BaCoolingOFF)
+        update(DarkTime)
+#definition of barium wait cycle
+def wait():
+        set_shutter(BaCoolingOFF)
+        update(WaitTime)
+#definition of D-state preperation cycle
+def Dprep():
+        set_shutter(DPrep)
+        update(DPrepTime)
+#definition of shutter to trigger PulseBlaster
+def PulseBlast():
+        set_shutter(PulseBlaster)
+        set_counter(APDcounts)
+        update(PulseBlasterTime)
+        clear_counter()
+        update()
+#definition of shelving
+def Shelving():
+        set_shutter(Shelve)
+        update(ShelveTime)
+
+#Initlise system
+def initialise():
+        set_dds(channel=DDS493Channel, freq=DDS493Freq, phase=DDS493Phase, amp=DDS493Amp)
+        set_trigger(dds)
+        update()
+        set_dds(channel=DDS650prepChannel, freq=DDS650prepFreq, phase=DDS650prepPhase, amp=DDS650prepAmp) 
+        set_trigger(dds)
+        update()
+        set_dds(channel=DDS650extChannel, freq=DDS650extFreq, phase=DDS650extPhase, amp=DDS650extAmp)  
+        set_trigger(dds)
+        update()
+        set_dds(channel=DDS493SigBeamChannel, freq=DDS493SigBeamFreq, phase=DDS493SigBeamPhase, amp=DDS493SigBeamAmp)  
+        set_trigger(dds)
+        update()
+        set_shutter(InitialisationShutter)
+        set_trigger(dds)
+        update()
+
+#Experiment loop
+while not pipe_empty():
+    if ToCool == 1:
+        initialise()
+        loopNumb = 0
+        while loopNumb < 1:
+            aomsteady()
+            dark()
+    else:
+        while Runs < 10001:
+            update()
+            apply_next_scan_point()  
+            bacool()
+            Dprep()
+            PulseBlast() 
+            APDAclicks = load_count(APDAchannel)
+            APDBclicks = load_count(APDBchannel)
+#for the scenario where both detectors read the same (probably 0,0 or 1,1) 
+            if APDAclicks == 2:#APDBclicks:
+                bacool()
+                APDMarker = 3
+                write_result(APDMarkerDataSendchannel,APDMarker)
+#for the scenario where there is more clicks on one than the other (normally 0,1 and 1,0)
+            else:
+                if APDAclicks == 0:
+                    Shelving()
+                    baCounting()
+                    PMTclicks = load_count(PMTchannel)
+                    APDMarker = 1
+                    Runs += 1
+                    write_result(PMTDataSendchannel,PMTclicks)
+                    write_result(APDMarkerDataSendchannel,APDMarker)
+                if APDBclicks >= 1:
+                    Shelving()
+                    baCounting()
+                    PMTclicks = load_count(PMTchannel)
+                    APDMarker = 2
+                    Runs += 1
+                    write_result(PMTDataSendchannel,PMTclicks)
+                    write_result(APDMarkerDataSendchannel,APDMarker)
+        ToCool = 1
+exit(Complete)

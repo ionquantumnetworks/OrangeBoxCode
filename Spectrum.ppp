@@ -1,0 +1,129 @@
+#AOM paraneters
+#493 AOM
+parameter<AD9912_FRQ> DDS493Freq
+parameter<AD9912_PHASE> DDS493Phase = 180
+parameter DDS493Amp = 1023
+#650 prep AOM
+parameter<AD9912_FRQ> DDS650prepFreq
+parameter<AD9912_PHASE> DDS650prepPhase = 180
+parameter DDS650prepAmp = 1023
+#650 extract AOM
+parameter<AD9912_FRQ> DDS650extFreq
+parameter<AD9912_PHASE> DDS650extPhase = 180
+parameter DDS650extAmp = 1023
+#493 AOM
+parameter<AD9912_FRQ> DDSBeatNoteFreq
+parameter<AD9912_PHASE> DDSBeatNotePhase = 180
+parameter DDSBeatNoteAmp = 1023
+
+#Experiment Laser parameters
+parameter BaCoolTime
+parameter BaCoolTime2
+parameter DarkTime = 0 ms
+#Experiment Variables
+parameter DPrepTime
+parameter BaDExtTime
+var WaitTime = 500 ns
+
+#General Experiment parameters
+parameter MaxRuns 
+parameter TotalSeg
+parameter Seg
+parameter runs
+parameter loopNumb
+parameter ToCool
+parameter AOMUptime
+
+#Channels
+const DDS493Channel = 5 #shutter 5
+const DDS650prepChannel = 2 #shutter 6
+const DDS650extChannel = 3 #shutter 3
+const DDSBeatNoteChannel = 4 #shutter 4
+
+#Counters
+counter PMTcounts = 0
+
+#Shutters
+shutter InitialisationShutter
+shutter BaCoolingON
+shutter BaCoolingOFF
+shutter DPrep
+shutter BaDExtraction
+
+#Triggers
+trigger dds
+
+#Exit Codes
+exitcode Complete              = 0xfffe000000000002
+exitcode End                   = 0xfffe000000000001
+
+#Experiment cycle definitions
+#definition to keep AOMs on for alignment and power measurement
+def aomsteady():
+        set_shutter(BaCoolingON)
+        update(AOMUptime)
+#definition of barium cool cycle with PMT counting
+def bacoolcounting():
+        set_shutter(BaCoolingON)
+        set_counter(PMTcounts)
+        update(BaCoolTime)
+        clear_counter()
+        update()
+#definition of barium cool cycle with no PMT counting
+def bacool():
+        set_shutter(BaCoolingON)
+        update(BaCoolTime)
+def bacool2():
+        set_shutter(BaCoolingON)
+        update(BaCoolTime2)
+#definition of barium dark cycle
+def dark():
+        set_shutter(BaCoolingOFF)
+        update(DarkTime)
+#definition of barium wait cycle
+def wait():
+        set_shutter(BaCoolingOFF)
+        update(WaitTime)
+#definition of D-state preperation cycle
+def Dprep():
+        set_shutter(DPrep)
+        update(DPrepTime)
+#definition of barium 493 photon extraction cycle from D-state
+def badext():  
+        set_shutter(BaDExtraction)
+        update(BaDExtTime)
+
+#Initlise system
+def initialise():
+        set_dds(channel=DDS493Channel, freq=DDS493Freq, phase=DDS493Phase, amp=DDS493Amp)
+        set_trigger(dds)
+        update()
+        set_dds(channel=DDS650prepChannel, freq=DDS650prepFreq, phase=DDS650prepPhase, amp=DDS650prepAmp) 
+        set_trigger(dds)
+        update()
+        set_dds(channel=DDS650extChannel, freq=DDS650extFreq, phase=DDS650extPhase, amp=DDS650extAmp)  
+        set_trigger(dds)
+        update()
+        set_dds(channel=DDSBeatNoteChannel, freq=DDSBeatNoteFreq, phase=DDSBeatNotePhase, amp=DDSBeatNoteAmp)  
+        set_trigger(dds)
+        update()
+        set_shutter(InitialisationShutter)
+        set_trigger(dds)
+        update()
+
+#Experiment loop
+while not pipe_empty():
+ if ToCool == 1:
+        initialise()
+        loopNumb = 0
+        while loopNumb < 1:
+            aomsteady()
+            dark()
+ else:    
+     update()
+     apply_next_scan_point()  
+     initialise()
+     loopNumb = 0
+     bacoolcounting()
+     loopNumb += 1
+exit(Complete)

@@ -1,0 +1,160 @@
+#AOM paraneters
+#493 AOM
+parameter<AD9912_FRQ> DDS493Freq
+parameter<AD9912_PHASE> DDS493Phase = 180
+parameter DDS493Amp = 1023
+#650 prep AOM
+parameter<AD9912_FRQ> DDS650prepFreq
+parameter<AD9912_PHASE> DDS650prepPhase = 180
+parameter DDS650prepAmp = 1023
+#650 extract AOM
+parameter<AD9912_FRQ> DDS650extFreq
+parameter<AD9912_PHASE> DDS650extPhase = 180
+parameter DDS650extAmp = 1023
+
+#Experiment parameters
+parameter BaCoolTime = 100 ms
+parameter DarkTime = 0 ms
+parameter BaDedgePrepTime = 0 ms
+parameter BaDedgeExtTime = 0 ms
+parameter NoRePumpTime = 0 ms
+parameter BaDExtTime = 0 ms
+parameter loopNumb
+parameter totalLoops
+parameter delay
+
+#Channels
+const DDS493Channel = 0 #shutter 0
+const DDS650prepChannel = 2 #shutter 6
+const DDS650extChannel = 3 #shutter 3
+
+#Counters
+counter PMTcounts = 0
+
+#Shutters
+shutter InitialisationShutter
+shutter BaCoolingON
+shutter BaCoolingOFF
+shutter BaDedgePreparation
+shutter BaDedgeExtraction
+shutter NoRePump
+shutter BaDExtraction
+
+#Triggers
+trigger dds
+
+#Exit Codes
+exitcode Complete              = 0xfffe000000000002
+
+#Experiment cycle definitions
+#definition of barium cool cycle with PMT counting
+def bacoolcounting():
+        set_dds(channel=DDS493Channel, freq=DDS493Freq, phase=DDS493Phase, amp=DDS493Amp)
+        set_trigger(dds)
+        update()
+        set_dds(channel=DDS650prepChannel, freq=DDS650prepFreq, phase=DDS650prepPhase, amp=DDS650prepAmp) 
+        set_trigger(dds)
+        update()
+        set_dds(channel=DDS650extChannel, freq=DDS650extFreq, phase=DDS650extPhase, amp=DDS650extAmp)  
+        set_trigger(dds)
+        update()
+        set_shutter(BaCoolingON)
+        set_trigger(dds)
+        set_counter(PMTcounts)
+        update(BaCoolTime)
+        clear_counter()
+        update()
+#definition of barium cool cycle with no PMT counting
+def bacool():
+        set_dds(channel=DDS493Channel, freq=DDS493Freq, phase=DDS493Phase, amp=DDS493Amp)
+        set_trigger(dds)
+        update()
+        set_dds(channel=DDS650prepChannel, freq=DDS650prepFreq, phase=DDS650prepPhase, amp=DDS650prepAmp) 
+        set_trigger(dds)
+        update()
+        set_dds(channel=DDS650extChannel, freq=DDS650extFreq, phase=DDS650extPhase, amp=DDS650extAmp)  
+        set_trigger(dds)
+        update()
+        set_shutter(BaCoolingON)
+        set_trigger(dds)
+        update(BaCoolTime)
+#definition of barium D-edge-state preperation cycle
+def badedgeprep():
+        set_dds(channel=DDS493Channel, freq=DDS493Freq, phase=DDS493Phase, amp=DDS493Amp)  
+        set_trigger(dds)
+        update()
+        set_dds(channel=DDS650prepChannel, freq=DDS650prepFreq, phase=DDS650prepPhase, amp=DDS650prepAmp)   
+        set_trigger(dds)
+        update()  
+        set_dds(channel=DDS650extChannel, freq=DDS650extFreq, phase=DDS650extPhase, amp=DDS650extAmp)     
+        set_trigger(dds)
+        update()  
+        set_shutter(BaDedgePreparation)
+        set_trigger(dds)
+        update(BaDedgePrepTime)
+#definition of barium 493 photon extraction cycle from D-edge-state
+def badedgeext():
+        set_dds(channel=DDS493Channel, freq=DDS493Freq, phase=DDS493Phase, amp=DDS493Amp) 
+        set_trigger(dds)
+        update()   
+        set_dds(channel=DDS650prepChannel, freq=DDS650prepFreq, phase=DDS650prepPhase, amp=DDS650prepAmp)  
+        set_trigger(dds)
+        update()     
+        set_dds(channel=DDS650extChannel, freq=DDS650extFreq, phase=DDS650extPhase, amp=DDS650extAmp)   
+        set_trigger(dds)
+        update()    
+        set_shutter(BaDedgeExtraction)
+        set_trigger(dds)
+        update(BaDedgeExtTime)
+#definition of barium dark cycle
+def dark():
+        set_shutter(BaCoolingOFF)
+        update(DarkTime)
+#definition of D-state preperation cycle
+def norepump():
+        set_dds(channel=DDS493Channel, freq=DDS493Freq, phase=DDS493Phase, amp=DDS493Amp)
+        set_trigger(dds)
+        update()
+        set_dds(channel=DDS650prepChannel, freq=DDS650prepFreq, phase=DDS650prepPhase, amp=DDS650prepAmp) 
+        set_trigger(dds)
+        update()
+        set_dds(channel=DDS650extChannel, freq=DDS650extFreq, phase=DDS650extPhase, amp=DDS650extAmp)  
+        set_trigger(dds)
+        update()
+        set_shutter(NoRePump)
+        set_trigger(dds)
+        update(NoRePumpTime)
+#definition of barium 493 photon extraction cycle from D-state
+def badext():
+        set_dds(channel=DDS493Channel, freq=DDS493Freq, phase=DDS493Phase, amp=DDS493Amp)
+        set_trigger(dds)
+        update()    
+        set_dds(channel=DDS650prepChannel, freq=DDS650prepFreq, phase=DDS650prepPhase, amp=DDS650prepAmp)   
+        set_trigger(dds)
+        update()    
+        set_dds(channel=DDS650extChannel, freq=DDS650extFreq, phase=DDS650extPhase, amp=DDS650extAmp)   
+        set_trigger(dds)
+        update()    
+        set_shutter(BaDExtraction)
+        set_trigger(dds)
+        set_counter(PMTcounts)
+        update(BaDExtTime)
+        clear_counter()
+        update()
+
+#Initlise system
+set_shutter(InitialisationShutter)
+update()
+#Experiment loop
+while not pipe_empty():
+  update()
+  apply_next_scan_point()  
+  set_trigger(dds)
+  update()
+  loopNumb = 0
+  while loopNumb < totalLoops:
+     bacool()
+     dark()
+     loopNumb += 0
+     
+exit(Complete)
