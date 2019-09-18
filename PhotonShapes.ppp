@@ -23,6 +23,7 @@ parameter DPrepTime
 parameter PulseBlasterTime
 parameter ShelveTime
 parameter BaDetTime
+parameter All650Time
 var WaitTime = 500 ns
 
 #General Experiment parameters
@@ -61,6 +62,7 @@ shutter BaCoolingOFF
 shutter DPrep
 shutter PulseBlaster
 shutter Shelve
+shutter All650Shutter
 
 #Triggers
 trigger dds
@@ -108,7 +110,10 @@ def PulseBlast():
 def Shelving():
         set_shutter(Shelve)
         update(ShelveTime)
-
+#definition of all 650 beams on
+def All650():
+        set_shutter(All650Shutter)
+        update(All650Time)
 #Initlise system
 def initialise():
         set_dds(channel=DDS493Channel, freq=DDS493Freq, phase=DDS493Phase, amp=DDS493Amp)
@@ -143,6 +148,8 @@ while not pipe_empty():
             #apply_next_scan_point()  
             bacool()
             Dprep()
-            PulseBlast() 
+            wait()
+            PulseBlast()
+            All650() 
             bacool()
 exit(Complete)
