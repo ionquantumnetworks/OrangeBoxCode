@@ -24,6 +24,7 @@ parameter PulseBlasterTime
 parameter ShelveTime
 parameter BaDetTime
 parameter SPrepTime
+parameter LEDdeshelveTime
 var WaitTime = 500 ns
 
 #General Experiment parameters
@@ -63,6 +64,7 @@ shutter DPrep
 shutter PulseBlaster
 shutter Shelve
 shutter SPrepare
+shutter LEDdeshelveShutter
 
 #Triggers
 trigger dds
@@ -114,6 +116,10 @@ def Shelving():
 def SPrep():
         set_shutter(SPrepare)
         update(SPrepTime)
+#definition of LED de-shelve
+def LEDdeshelve():
+        set_shutter(LEDdeshelveShutter)
+        update(LEDdeshelveTime)
 
 #Initlise system
 def initialise():
@@ -151,6 +157,7 @@ while not pipe_empty():
             baCounting()
             PMTclicks = load_count(PMTchannel)
             write_result(PMTDataSendchannel,PMTclicks)
+            LEDdeshelve() #should probably add a de-shlving pulse here (maybe the 614 nm LED for X s?)
             Runs +=1
         ToCool = 1
 exit(Complete)
