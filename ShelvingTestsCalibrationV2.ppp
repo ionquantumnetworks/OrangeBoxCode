@@ -1,0 +1,176 @@
+#AOM paraneters
+#493 AOM
+parameter<AD9912_FRQ> DDS493Freq
+parameter<AD9912_PHASE> DDS493Phase = 180
+parameter DDS493Amp = 1023
+#650 prep AOM
+parameter<AD9912_FRQ> DDS650prepFreq
+parameter<AD9912_PHASE> DDS650prepPhase = 180
+parameter DDS650prepAmp = 1023
+#650 extract AOM
+parameter<AD9912_FRQ> DDS650extFreq
+parameter<AD9912_PHASE> DDS650extPhase = 180
+parameter DDS650extAmp = 1023
+#493 AOM
+parameter<AD9912_FRQ> DDS493SigBeamFreq
+parameter<AD9912_PHASE> DDS493SigBeamPhase = 180
+parameter DDS493SigBeamAmp = 1023
+
+#Experiment parameters
+parameter BaCoolTime
+parameter DarkTime
+parameter DPrepTime
+parameter PulseBlasterTime
+parameter ShelveTime
+parameter BaDetTime
+parameter SPrepTime
+parameter LEDdeshelveTime
+parameter LaserOnTime
+var ProbGroundState
+var WaitTime = 1 ms
+
+#General Experiment parameters
+parameter loopNumb
+parameter ToCool
+parameter ToScan
+parameter ToStateCalibrate
+parameter PMTclicks
+var GroundState
+var Runs
+
+#Channels
+const DDS493Channel = 5 #shutter 5
+const DDS650prepChannel = 2 #shutter 6
+const DDS650extChannel = 3 #shutter 3
+const DDS493SigBeamChannel = 4 #shutter 4
+const PMTchannel = 18 
+#const APDAchannel = 17
+#const APDBchannel = 19
+const PMTDataSendchannel = 1
+#const APDMarkerDataSendchannel = 2
+#const BrightADataSendchannel = 3
+const ProbabilityDataSendchannel = 2
+
+#Counters
+counter PMTcounts = 0
+
+#Shutters
+shutter InitialisationShutter
+shutter BaCoolingON
+shutter BaCoolingOFF
+shutter DPrep
+shutter Shelve
+shutter SPrepare
+shutter LEDdeshelveShutter
+shutter AllLasersOn
+
+#Triggers
+trigger dds
+
+#Exit Codes
+exitcode Complete              = 0xfffe000000000002
+exitcode End                   = 0xfffe000000000001
+
+#Experiment cycle definitions
+#definition to keep AOMs on for alignment and power measurement
+def LasersON():
+        set_shutter(AllLasersOn)
+        update(LaserOnTime)
+#definition of barium cool cycle with PMT counting
+def baCounting():
+        set_shutter(BaCoolingON)
+        set_counter(PMTcounts)
+        update(BaDetTime)
+        clear_counter()
+        update()
+#definition of barium cool cycle with no PMT counting
+def bacool():
+        set_shutter(BaCoolingON)
+        update(BaCoolTime)
+#definition of barium dark cycle
+def dark():
+        set_shutter(BaCoolingOFF)
+        update(DarkTime)
+#definition of barium wait cycle
+def wait():
+        set_shutter(BaCoolingOFF)
+        update(WaitTime)
+#definition of D-state preperation cycle
+def Dprep():
+        set_shutter(DPrep)
+        update(DPrepTime)
+#definition of shelving
+def Shelving():
+        set_shutter(Shelve)
+        update(ShelveTime)
+#definition of S-Prepping
+def SPrep():
+        set_shutter(SPrepare)
+        update(SPrepTime)
+#definition of LED de-shelve
+def LEDdeshelve():
+        set_shutter(LEDdeshelveShutter)
+        update(LEDdeshelveTime)
+
+#Initlise system
+def initialise():
+        set_dds(channel=DDS493Channel, freq=DDS493Freq, phase=DDS493Phase, amp=DDS493Amp)
+        set_trigger(dds)
+        update()
+        set_dds(channel=DDS650prepChannel, freq=DDS650prepFreq, phase=DDS650prepPhase, amp=DDS650prepAmp) 
+        set_trigger(dds)
+        update()
+        set_dds(channel=DDS650extChannel, freq=DDS650extFreq, phase=DDS650extPhase, amp=DDS650extAmp)  
+        set_trigger(dds)
+        update()
+        set_dds(channel=DDS493SigBeamChannel, freq=DDS493SigBeamFreq, phase=DDS493SigBeamPhase, amp=DDS493SigBeamAmp)  
+        set_trigger(dds)
+        update()
+        set_shutter(InitialisationShutter)
+        set_trigger(dds)
+        update()
+
+#Experiment loop
+while not pipe_empty():
+    if ToCool == 1:
+        initialise()
+        loopNumb = 0
+        while loopNumb < 1:
+            LasersON()
+            dark()
+    if ToStateCalibrate == 1:
+        Runs = 0
+        while Runs < 10001:
+            update()
+            #apply_next_scan_point()  
+            bacool()
+            SPrep()
+            wait()
+            baCounting()
+            PMTclicks = load_count(PMTchannel)
+            write_result(PMTDataSendchannel,PMTclicks)
+            #LEDdeshelve()
+            Runs +=1
+        ToCool = 1 
+    if ToScan == 1:
+        update()
+        apply_next_scan_point()
+        GroundState = 0
+        Runs = 0
+        while Runs < 10:
+            bacool()
+            SPrep()
+            wait()
+            Shelving() 
+            wait()
+            baCounting()
+            wait()
+            PMTclicks = load_count(PMTchannel)
+            if PMTclicks > 7:
+                GroundState +=1
+            LEDdeshelve()
+            wait()
+            Runs +=1
+        write_result(ProbabilityDataSendchannel,GroundState)
+        bacool()
+exit(Complete)
