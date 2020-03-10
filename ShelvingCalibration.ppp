@@ -164,15 +164,16 @@ while not pipe_empty():
     if ToScan == 1:
         update()
         apply_next_scan_point()
+        initialise()
         GroundState = 0
         ShelvedState = 0
         Runs = 0
-        while Runs < 100:
+        while Runs < 50:
             bacool()
             SPrep()
             waitShort()
             Shelving() 
-            waitShort()
+            waitLong()
             baCounting()
             waitLong()
             PMTclicks = load_count(PMTchannel)
