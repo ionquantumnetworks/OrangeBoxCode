@@ -1,0 +1,268 @@
+#AOM paraneters
+#493 AOM
+parameter<AD9912_FRQ> DDS493Freq
+parameter<AD9912_PHASE> DDS493Phase = 180
+parameter DDS493Amp = 1023
+#650 prep AOM
+parameter<AD9912_FRQ> DDS650prepFreq
+parameter<AD9912_PHASE> DDS650prepPhase = 180
+parameter DDS650prepAmp = 1023
+#650 extract AOM
+parameter<AD9912_FRQ> DDS650extFreq
+parameter<AD9912_PHASE> DDS650extPhase = 180
+parameter DDS650extAmp = 1023
+#493 AOM
+parameter<AD9912_FRQ> DDS493SigBeamFreq
+parameter<AD9912_PHASE> DDS493SigBeamPhase = 180
+parameter DDS493SigBeamAmp = 1023
+
+#Experiment Modes
+parameter ToCool
+parameter ToScan
+parameter ToStateCalibrate
+parameter ToPhotonShapes
+parameter ToHOLDPulseBlaster
+parameter ToRUNPulseBlaster
+
+#Experiment parameters
+parameter BaCoolTime
+parameter LongBaCoolTime
+parameter DarkTime
+parameter DPrepTime
+parameter ShelveTime
+parameter BaDetTime
+parameter SPrepTime
+parameter LEDdeshelveTime
+parameter LaserOnTime
+parameter PiTime
+parameter ExternalDDSFreq
+var ProbGroundState
+var WaitTimeLong = 1 ms
+var WaitTimeShort = 1 us
+var LineTriggerWait = 20 us
+var ExternalDDSTriggerTime = 10 us
+var picoTriggerTime = 1 us
+var PulseBlasterTriggerTime = 1 us
+var Excite650Time = 1 us
+
+#General Experiment parameters
+parameter loopNumb
+parameter PMTclicks
+parameter LineEvent
+var GroundState
+var ShelvedState
+var Runs
+var holding = 0
+
+#Channels
+const DDS493Channel = 5 #shutter 5
+const DDS650prepChannel = 2 #shutter 6
+const DDS650extChannel = 3 #shutter 3
+const DDS493SigBeamChannel = 4 #shutter 4
+const PMTchannel = 18 
+#const APDAchannel = 17
+#const APDBchannel = 19
+const LineChannel = 19
+const PMTDataSendchannel = 1
+const GSProbabilityDataSendChannel = 2
+const SSProbabilityDataSendChannel = 3
+
+#Counters
+counter PMTcounts = 0
+counter LineTriggerInput = 0
+
+#Shutters
+shutter InitialisationShutter
+shutter BaCoolingON
+shutter BaCoolingOFF
+shutter DPrep
+shutter Shelve
+shutter SPrepare
+shutter LEDdeshelveShutter
+shutter AllLasersOn
+shutter ExternalDDSTrigger
+shutter picoTriggerShutter
+shutter Excite650Shutter
+shutter PulseBlasterHOLD
+shutter PulseBlasterRUN
+
+#Triggers
+trigger dds
+
+#Exit Codes
+exitcode Complete              = 0xfffe000000000002
+exitcode End                   = 0xfffe000000000001
+
+#Experiment cycle definitions
+#definition to keep AOMs on for alignment and power measurement
+def LasersON():
+        set_shutter(AllLasersOn)
+        update(LaserOnTime)
+#definition of barium cool cycle with PMT counting
+def baCounting():
+        set_shutter(BaCoolingON)
+        set_counter(PMTcounts)
+        update(BaDetTime)
+        clear_counter()
+        update()
+#definition of barium cool cycle with no PMT counting
+def bacool():
+        set_shutter(BaCoolingON)
+        update(BaCoolTime)
+#definition of a LONG barium cool cycle with no PMT counting
+def LongBaCool():
+        set_shutter(BaCoolingON)
+        update(LongBaCoolTime)
+#definition of barium dark cycle
+def dark():
+        set_shutter(BaCoolingOFF)
+        update(DarkTime)
+#definition of barium wait cycle
+def waitShort():
+        set_shutter(BaCoolingOFF)
+        update(WaitTimeShort)
+def waitLong():
+        set_shutter(BaCoolingOFF)
+        update(WaitTimeLong)
+#definition of D-state preperation cycle
+def Dprep():
+        set_shutter(DPrep)
+        update(DPrepTime)
+#definition of shelving
+def Shelving():
+        set_shutter(Shelve)
+        update(ShelveTime)
+#definition of S-Prepping
+def SPrep():
+        set_shutter(SPrepare)
+        update(SPrepTime)
+#definition of LED de-shelve
+def LEDdeshelve():
+        set_shutter(LEDdeshelveShutter)
+        update(LEDdeshelveTime)
+#definition of Laser de-shelve
+def LASERdeshelve():
+        set_shutter(Shelve)
+        update(PiTime)
+#definition of Line Trigger
+def LineTrigger():
+        set_shutter(BaCoolingON)
+        set_counter(LineTriggerInput)
+        update(LineTriggerWait)
+        clear_counter()
+        update()
+#definition to trigger external Arduino controlled AD9910
+def TriggerExtDDS():
+        set_shutter(ExternalDDSTrigger)
+        #ExternalDDSFreq = 0
+        update(ExternalDDSTriggerTime)  
+#defintion to excite from the D-state to create a 493 photon
+def Excite650():
+        set_shutter(Excite650Shutter)
+        update(Excite650Time)
+#definition to trigger picoHarp
+def picoTrigger():
+    set_shutter(picoTriggerShutter)
+    update(picoTriggerTime)
+#definition of PulseBlaster HOLD
+def PBhold():
+    set_shutter(PulseBlasterHOLD)
+    update(LaserOnTime)
+#definition of PulseBlaster RUN
+def PBrun():
+    set_shutter(PulseBlasterRUN)
+    update(LaserOnTime)
+
+#Initlise system
+def initialise():
+        set_dds(channel=DDS493Channel, freq=DDS493Freq, phase=DDS493Phase, amp=DDS493Amp)
+        set_trigger(dds)
+        update()
+        set_dds(channel=DDS650prepChannel, freq=DDS650prepFreq, phase=DDS650prepPhase, amp=DDS650prepAmp) 
+        set_trigger(dds)
+        update()
+        set_dds(channel=DDS650extChannel, freq=DDS650extFreq, phase=DDS650extPhase, amp=DDS650extAmp)  
+        set_trigger(dds)
+        update()
+        set_dds(channel=DDS493SigBeamChannel, freq=DDS493SigBeamFreq, phase=DDS493SigBeamPhase, amp=DDS493SigBeamAmp)  
+        set_trigger(dds)
+        update()
+        set_shutter(InitialisationShutter)
+        set_trigger(dds)
+        update()
+
+#Experiment loop
+while not pipe_empty():
+    if ToCool == 1:
+        initialise()
+        loopNumb = 0
+        while loopNumb < 1:
+            LasersON()
+            dark()
+    if ToStateCalibrate == 1:
+        Runs = 0
+        while Runs < 1001:
+            update()
+            #apply_next_scan_point()  
+            bacool()
+            SPrep()
+            waitShort()
+            baCounting()
+            PMTclicks = load_count(PMTchannel)
+            waitShort()
+            write_result(PMTDataSendchannel,PMTclicks) #channel 1
+            #LEDdeshelve()
+            Runs +=1
+        ToCool = 1 
+    if ToScan == 1:
+        update()
+        apply_next_scan_point()
+        TriggerExtDDS()
+        initialise()
+        GroundState = 0
+        ShelvedState = 0
+        Runs = 0
+        while Runs < 50:
+            #LineTrigger()
+            LineEvent = 1 #load_count(LineChannel)
+            if LineEvent > 0:
+                bacool()
+                SPrep()
+                waitShort()
+                Shelving() 
+                waitLong()
+                baCounting()
+                waitLong()
+                PMTclicks = load_count(PMTchannel)
+                if PMTclicks > 10:
+                    GroundState +=1
+                else:
+                    ShelvedState +=1
+                    LASERdeshelve()
+                    waitShort()
+                    baCounting()
+                    waitShort()
+                    PMTclicks = load_count(PMTchannel)
+                    #LEDdeshelve()
+                    if PMTclicks < 10:
+                        LEDdeshelve()
+                    LongBaCool()
+                Runs +=1
+        write_result(GSProbabilityDataSendChannel,GroundState) #channel 2
+        write_result(SSProbabilityDataSendChannel,ShelvedState) #channel 3
+        bacool()
+    if ToPhotonShapes == 1:
+        update()
+        bacool()
+        Dprep()
+        waitShort()
+        picoTrigger()
+        Excite650()
+        waitShort()
+    if ToHOLDPulseBlaster == 1:
+        initialise()
+        while holding < 1:
+            PBhold()
+    if ToRUNPulseBlaster == 1:
+        PBrun()
+exit(Complete)
