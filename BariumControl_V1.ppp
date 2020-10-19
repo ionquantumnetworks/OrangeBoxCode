@@ -264,5 +264,6 @@ while not pipe_empty():
         while holding < 1:
             PBhold()
     if ToRUNPulseBlaster == 1:
-        PBrun()
+        while holding < 1:
+            PBrun()
 exit(Complete)
